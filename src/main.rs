@@ -1,6 +1,12 @@
 use iced::{Element, Length};
 use iced::widget::{column, row, PickList};
-use iced::widget::{button, table, text, pick_list, progress_bar};
+use iced::widget::{button, text, pick_list, progress_bar, table, scrollable};
+// use iced::{Font, font};
+use iced::{Theme, Renderer};
+
+mod helpers;
+use helpers::region::{Nacional, Estadual, Regional};
+use helpers::{OptionItem, RegSeletor, Ftp, Sim, Sinan};
 
 
 fn main() -> iced::Result {
@@ -43,6 +49,7 @@ struct App {
 
 
     progress: f32,
+    rows: Vec<String>,
 }
 
 
@@ -64,6 +71,7 @@ impl App{
             reg_sel: None,
 
             progress: 50.0,
+            rows: Vec::new(),
         }
     }
 
@@ -125,7 +133,7 @@ impl App{
                    est,
                    self.est_selected,
                    Message::Estadual
-                ).placeholder("SELECIONE A UF").into()
+                ).menu_height(200).placeholder("SELECIONE A UF").into()
             }
             Some(RegSeletor::Regional) => {
                 let reg = Regional::ALL.to_vec();
@@ -146,26 +154,49 @@ impl App{
             }
         };
 
-        column![
-            row![
-                column![
-                    ftp_pick,
-                    db_pick,
-                ].padding(10).spacing(10),
 
-                column![
-                    pick_reg_selector,
-                    pick_subreg,
-                ].padding(10).spacing(10),
-            ],
+        let num_colunas = 50;
+
+        let new_columns: Vec<table::Column<'_, '_, &str, Message, Theme, Renderer>> = (0..num_colunas)
+            .map(|i| {
+                table::column(
+                    text(format!("Coluna {}", i + 1)), 
+                    move |_row_data: &str| {
+                    text(format!("Valor {}", i + 1))
+                    },
+                ) .width(100.0)
+            }).collect(); 
+
+
+        let mytable: Element<'_, Message> = table(new_columns, vec![""; 50]).into();
+
+        row![
+            column![
                 row![
-                    button("Baixar dados").on_press(Message::Download),
-                    button("Pré-visualizar").on_press(Message::Visualizar),
-                ].padding(10).spacing(10),
+                    column![
+                        ftp_pick,
+                        db_pick,
+                        pick_reg_selector,
+                        pick_subreg,
+                    ].width(Length::FillPortion(1)).padding(10).spacing(10),
+                ],
+                    row![
+                        button("Baixar dados").on_press(Message::Download),
+                        button("Pré-visualizar").on_press(Message::Visualizar),
+                    ].padding(10).spacing(10),
 
-            row![
-                progress_bar(0.0..=100.0, self.progress).length(Length::FillPortion(1)),
-            ].padding(10).spacing(10)
+                row![
+                    progress_bar(0.0..=100.0, self.progress),
+                ].padding(10).spacing(10),
+            ].width(Length::FillPortion(1)),
+            column![
+                scrollable(mytable).direction(
+                    scrollable::Direction::Both {
+                        vertical: scrollable::Scrollbar::new(),
+                        horizontal:  scrollable::Scrollbar::new()
+                    }
+                ),
+            ].padding(8).width(Length::FillPortion(1)),
         ].into()
     }
 
@@ -216,249 +247,5 @@ impl App{
            Message::Regional(data) => { self.reg_sel = Some(data)}
            Message::OptionItem(_) => {}
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum OptionItem { }
-
-
-impl std::fmt::Display for OptionItem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Sim {
-    NascidosVivos,
-    NascidosMortos,
-}
-
-impl Sim {
-    const ALL: [Sim; 2] = [Sim::NascidosMortos, Sim::NascidosVivos];
-}
-
-impl std::fmt::Display for Sim {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Sim::NascidosVivos => "Nascidos Vivos",
-            Sim::NascidosMortos => "Nascidos Mortos"
-        } )
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Sinan {
-    AnimaisPenconhentos,
-    AcidenteDeTrabalho,
-    Toxinas,
-}
-
-impl Sinan {
-    const ALL: [Sinan; 3] = [
-        Sinan::AcidenteDeTrabalho,
-        Sinan::AnimaisPenconhentos,
-        Sinan::Toxinas
-    ];
-}
-
-impl std::fmt::Display for Sinan {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Sinan::AcidenteDeTrabalho => "Acidente de Trabalho",
-            Sinan::AnimaisPenconhentos => "Animais Penconhentos",
-            Sinan::Toxinas => "Toxinas"
-        } )
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Ftp {
-    Sim,
-    Sinan,
-}
-
-
-impl Ftp {
-    const ALL: [Ftp; 2] = [Ftp::Sim, Ftp::Sinan];
-}
-
-
-impl std::fmt::Display for Ftp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Ftp::Sim => "Sim",
-            Ftp::Sinan => "Sinan"
-        })
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RegSeletor {
-    Nacional,
-    Estadual,
-    Regional,
-}
-
-impl RegSeletor {
-    const ALL: [RegSeletor; 3] = [
-        RegSeletor::Nacional,
-        RegSeletor::Estadual,
-        RegSeletor::Regional
-    ];
-}
-
-impl std::fmt::Display for RegSeletor {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            RegSeletor::Nacional => "Nacional",
-            RegSeletor::Estadual => "Estadual",
-            RegSeletor::Regional => "Regional",
-        })
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Nacional {
-    Brasil
-}
-
-impl std::fmt::Display for Nacional {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Brasil")
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Regional {
-    Norte,
-    Nordeste,
-    Sul,
-    Sudeste,
-    CentroOeste,
-}
-
-impl Regional {
-    const ALL: [Regional; 5] = [
-        Regional::Norte,
-        Regional::Nordeste,
-        Regional::Sul,
-        Regional::Sudeste,
-        Regional::CentroOeste
-    ];
-}
-
-impl std::fmt::Display for Regional {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Regional::Norte => "Norte",
-            Regional::Nordeste => "Nordeste",
-            Regional::Sul => "Sul",
-            Regional::Sudeste => "Sudeste",
-            Regional::CentroOeste => "Centro-Oeste",
-        })
-    }
-}
-
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Estadual {
-    AC,
-    AL,
-    AP,
-    AM,
-    BA,
-    CE,
-    DF,
-    ES,
-    GO,
-    MA,
-    MT,
-    MS,
-    MG,
-    PA,
-    PB,
-    PR,
-    PE,
-    PI,
-    RJ,
-    RN,
-    RS,
-    RO,
-    RR,
-    SC,
-    SP,
-    SE,
-    TO,
-}
-
-impl Estadual {
-    const ALL: [Estadual; 27] = [
-        Estadual::AC,
-        Estadual::AL,
-        Estadual::AP,
-        Estadual::AM,
-        Estadual::BA,
-        Estadual::CE,
-        Estadual::DF,
-        Estadual::ES,
-        Estadual::GO,
-        Estadual::MA,
-        Estadual::MT,
-        Estadual::MS,
-        Estadual::MG,
-        Estadual::PA,
-        Estadual::PB,
-        Estadual::PR,
-        Estadual::PE,
-        Estadual::PI,
-        Estadual::RJ,
-        Estadual::RN,
-        Estadual::RS,
-        Estadual::RO,
-        Estadual::RR,
-        Estadual::SC,
-        Estadual::SP,
-        Estadual::SE,
-        Estadual::TO,
-    ];
-}
-
-impl std::fmt::Display for Estadual {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-    		Estadual::AC => "AC",
-    		Estadual::AL => "AL",
-    		Estadual::AP => "AP",
-    		Estadual::AM => "AM",
-    		Estadual::BA => "BA",
-    		Estadual::CE => "CE",
-    		Estadual::DF => "DF",
-    		Estadual::ES => "ES",
-    		Estadual::GO => "GO",
-    		Estadual::MA => "MA",
-    		Estadual::MT => "MT",
-    		Estadual::MS => "MS",
-    		Estadual::MG => "MG",
-    		Estadual::PA => "PA",
-    		Estadual::PB => "PB",
-    		Estadual::PR => "PR",
-    		Estadual::PE => "PE",
-    		Estadual::PI => "PI",
-    		Estadual::RJ => "RJ",
-    		Estadual::RN => "RN",
-    		Estadual::RS => "RS",
-    		Estadual::RO => "RO",
-    		Estadual::RR => "RR",
-    		Estadual::SC => "SC",
-    		Estadual::SP => "SP",
-    		Estadual::SE => "SE",
-    		Estadual::TO => "TO",
-        })
     }
 }
